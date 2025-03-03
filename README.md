@@ -2,9 +2,10 @@
 
 A Python-based MCP (Model Context Protocol) client that connects Mattermost with MCP servers, enabling command execution and tool management through Mattermost channels.
 
-## Demonstration
+## Demo
 
-[MCP Client - Mattermost](data/demo-screen-recording.mov)
+[MCP Client - Mattermost](data/demo.gif)
+
 
 ## Prerequisites
 
@@ -171,5 +172,9 @@ This repository includes three MCP servers:
 2. **Using Tool calling Agent** to orchstrate tools in MCP servers
 2. **Implement authentication** for secure communication
 3. **Add support for file uploads** and other Mattermost features
+
+
+### Demo Video
+[![Mattermost MCP Client Demo](https://img.youtube.com/vi/YPtfqUstfTI/0.jpg)](https://www.youtube.com/watch?v=YPtfqUstfTI)
 
 
