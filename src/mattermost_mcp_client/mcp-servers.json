@@ -1,0 +1,19 @@
+{
+    "mcpServers": {
+      "ollama-mcp-server":{
+        "command": "python",
+        "args": ["ollama-mcp-server/src/ollama_mcp_server/main.py"],
+        "type": "stdio"
+      },
+      "simple-mcp-server": {
+        "command": "python",
+        "args": ["simple-mcp-server/server.py"],
+        "type": "stdio"
+      },
+      "mattermost-mcp-server": {
+        "command": "python",
+        "args": ["mattermost-mcp-server/src/mattermost_mcp_server/server.py"],
+        "type": "stdio"
+      }
+    }
+}
