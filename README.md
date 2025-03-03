@@ -4,7 +4,7 @@ A Python-based MCP (Model Context Protocol) client that connects Mattermost with
 
 ## Demo
 
-[MCP Client - Mattermost](data/demo.gif)
+<img src="data/demo.gif" alt="MCP Client Demo" width="800"/>
 
 
 ## Prerequisites
@@ -174,7 +174,10 @@ This repository includes three MCP servers:
 3. **Add support for file uploads** and other Mattermost features
 
 
-### Demo Video
-[![Mattermost MCP Client Demo](https://img.youtube.com/vi/YPtfqUstfTI/0.jpg)](https://www.youtube.com/watch?v=YPtfqUstfTI)
+### Watch the full demo video:
+
+<a href="https://www.youtube.com/watch?v=YPtfqUstfTI" target="_blank">
+  <img src="https://img.youtube.com/vi/YPtfqUstfTI/maxresdefault.jpg" alt="Watch the demo video" width="800"/>
+</a>
 
 
