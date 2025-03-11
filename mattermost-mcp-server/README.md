@@ -1,19 +1,34 @@
 # Mattermost MCP Server
 
-A MCP server implementation that integrates with Mattermost to provide note-taking and summarization capabilities through the MCP protocol.
+A Model Context Protocol (MCP) server implementation that integrates with Mattermost to provide enterprise collaboration capabilities through the MCP protocol. This server enables AI assistants to interact with your Mattermost workspace.
 
 ## Features
 
-- Seamless integration with Mattermost
-- Note storage and management system
-- Note summarization capabilities
-- Custom URI scheme for note access
+### Resources
+- Access teams, channels, and posts
+- View pinned posts for quick reference
+- Get channel statistics and member information
+- Track discussions across channels
+
+### Tools
+- Post messages to any channel
+- Create project-specific channels
+- Pin important announcements
+- Add emoji reactions to posts
+- Search across messages
+
+### Prompts
+- Generate meeting notes templates
+- Create project status updates
+- Analyze discussion threads
+- Summarize channel activity
+- Create team onboarding documentation
 
 ## Prerequisites
 
-- Python 3.13.1+
+- Python 3.13+
 - Mattermost server (local or remote)
-- Required Python packages (see pyproject.toml)
+- Mattermost access token
 
 ## Installation
 

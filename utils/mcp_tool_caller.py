@@ -1,7 +1,7 @@
 import asyncio
 import argparse
 import json
-from mattermost_mcp_client.mcp_client import MCPClient
+from mattermost_mcp_host.mcp_client import MCPClient
 import os
 from pathlib import Path
 import logging
@@ -14,7 +14,7 @@ def load_server_configs():
     """Load MCP server configurations from mcp-servers.json"""
     try:
         # Get the path to mcp-servers.json relative to the package
-        config_path = Path(__file__).parent.parent / "src" / "mattermost_mcp_client" / "mcp-servers.json"
+        config_path = Path(__file__).parent.parent / "src" / "mattermost_mcp_host" / "mcp-servers.json"
         
         with open(config_path) as f:
             config = json.load(f)

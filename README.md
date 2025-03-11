@@ -1,183 +1,82 @@
-# Mattermost MCP Client
+# Mattermost MCP Host
 
-A Python-based MCP (Model Context Protocol) client that connects Mattermost with MCP servers, enabling command execution and tool management through Mattermost channels.
+A Mattermost integration with Model Context Protocol (MCP) servers that leverages AI language models to provide an intelligent interface for managing and executing tools through Mattermost.
 
-## Demo
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Python](https://img.shields.io/badge/python-3.13.1%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-<img src="data/demo.gif" alt="MCP Client Demo" width="800"/>
+## Features
 
+- 🤖 **AI-Powered Assistance**: Integrates with multiple AI providers (Azure OpenAI, OpenAI, Anthropic Claude, Google Gemini)
+- 🔌 **MCP Server Integration**: Connect to any Model Context Protocol (MCP) server
+- 🧰 **Tool Management**: Access and execute tools from connected MCP servers
+- 💬 **Thread-Based Conversations**: Maintains context within Mattermost threads
+- 🔄 **Tool Chaining**: AI can call multiple tools in sequence to accomplish complex tasks
+- 🔍 **Resource Discovery**: List available tools, resources, and prompts from MCP servers
+- 📚 **Multiple Provider Support**: Choose your preferred AI provider with a simple configuration change
 
-## Prerequisites
+## Quick Start
 
-- Python 3.13.1+ 
-- Mattermost server (local or remote)
-- Bot account in Mattermost with appropriate permissions
-
-## Installation
-
-1. **Create a virtual environment**
-
+1. Install the package:
 ```bash
-uv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-# On fish shell - source .venv/bin/activate.fish
+pip install mattermost-mcp-host
 ```
 
-2. **Install required packages**
-
-```bash
-uv sync # Installs all dependencies
-```
-
-3. **Set up configuration**
-
-Create a `.env` file with your Mattermost and MCP server settings:
-
+2. Configure environment:
 ```env
 MATTERMOST_URL=http://localhost:8065
 MATTERMOST_TOKEN=your-bot-token
-MATTERMOST_SCHEME=http
-MATTERMOST_PORT=8065
-MATTERMOST_TEAM_NAME=your-team-name
-MATTERMOST_CHANNEL_NAME=town-square
-MCP_SERVER_TYPE=stdio
-MCP_COMMAND=python
-MCP_ARGS=mcp_server.py
-LOG_LEVEL=INFO
-```
-For a complete list of configuration options and their default values, refer to the [config.py](src/mattermost_mcp_client/config.py).
-
-## Configuration Options
-
-All configuration options can be set through environment variables or in the `.env` file. Here are the available options:
-
-- `COMMAND_PREFIX` - Prefix for bot commands (default: '!mcp')
-- `LOG_LEVEL` - Logging level (default: 'INFO')
-
-4. **Configure MCP Servers**
-
-Create or modify [mcp-servers.json](src/mattermost_mcp_client/mcp-servers.json) in the src/mattermost_mcp_client directory:
-
-```json
-{
-    "mcpServers": {
-      "ollama-mcp-server":{
-        "command": "python",
-        "args": ["ollama-mcp-server/src/ollama_mcp_server/main.py"],
-        "type": "stdio"
-      },
-      "simple-mcp-server": {
-        "command": "python",
-        "args": ["simple-mcp-server/server.py"],
-        "type": "stdio"
-      },
-      "mattermost-mcp-server": {
-        "command": "python",
-        "args": ["mattermost-mcp-server/src/mattermost_mcp_server/server.py"],
-        "type": "stdio"
-      }
-    }
-}
+MATTERMOST_TEAM_NAME=your-team
+OPENAI_API_KEY=your-openai-key
 ```
 
-## Mattermost Setup
-
-1. **Start a local Mattermost server** (if not already running)
-
-You can use Docker to run Mattermost locally:
-
+3. Start the integration:
 ```bash
-docker run --name mattermost-preview -d --publish 8065:8065 mattermost/mattermost-preview
+python -m mattermost_mcp_host
 ```
 
-2. **Create a Bot Account**
+For detailed installation instructions and additional configuration options, see [INSTALLATION.md](INSTALLATION.md).
 
-- Go to Integrations > Bot Accounts > Add Bot Account
-- Give it a name and description
-- Note the access token provided
+## Prerequisites
 
-3. **Add the bot to your team and channel**
+- Python 3.13.1+
+- Mattermost server (local or remote)
+- Bot account in Mattermost with appropriate permissions
+- Access to at least one LLM API:
+  - OpenAI (default)
+  - Azure OpenAI (optional)
+  - Anthropic Claude (optional)
+  - Google Gemini (optional)
 
-## Running the Integration
+## Available Commands
 
-1. **Start the Mattermost MCP Client**
+Once the integration is running, use these commands in your Mattermost channel:
 
-```bash
-python src/mattermost_mcp_client/main.py
-```
+- `/help` - Display help information
+- `/servers` - List available MCP servers
+- `/<server_name> tools` - List available tools for a specific server
+- `/<server_name> call <tool_name> <args>` - Call a specific tool
 
-## Using the MCP Tool Caller Utility
 
-The `mcp_tool_caller.py` utility allows you to interact with MCP servers directly from the command line:
+## MCP Tool Caller Utility
 
-1. **List server capabilities**
+The `mcp_tool_caller.py` utility allows direct command-line interaction with MCP servers:
+
+1. List server capabilities:
 ```bash
 python utils/mcp_tool_caller.py list --server-name simple-mcp-server
 ```
 
-2. **Call specific tools**
+2. Call specific tools:
 ```bash
 python utils/mcp_tool_caller.py call --server-name simple-mcp-server --tool echo --tool-args '{"input": "Hello World"}'
 ```
 
-## Mattermost Commands
+## Contributing
 
-Once the integration is running, use these commands in your Mattermost channel:
+Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on submitting pull requests.
 
-- `!mcp help` - Display help information
-- `!mcp servers` - List available MCP servers
-- `!mcp <server_name> tools` - List available tools for a specific server
-- `!mcp <server_name> call <tool_name> <args>` - Call a specific tool
-- `!mcp <server_name> resources` - List available resources
-- `!mcp <server_name> prompts` - List available prompts
+## License
 
-Example:
-```
-!mcp simple-mcp-server call echo message "Hello World"
-```
-```
-!mcp mattermost-mcp-server call post-message {"channel_id": "5q39mmzqji8bddxyjzsqbziy9a", "message": "Hello from Demo!"}'
-
-
-!mcp ollama-mcp-server call generate {"prompt": "Write a short poem about AI", "model": "llama3.2:latest"}
-
-
-```
-
-## MCP Servers included
-This repository includes three MCP servers:
-- **simple-mcp-server**: A simple MCP server that has two simple tools
-- **ollama-mcp-server**: A MCP server that uses Ollama locally to generate text
-- **mattermost-mcp-server**: A MCP server that wraps Mattermost API and performs various actions
-
-## Troubleshooting
-
-1. **Connection Issues:**
-   - Verify Mattermost URL and port
-   - Check the bot token is valid
-   - Ensure the MCP server is running
-
-2. **Permission Issues:**
-   - Make sure the bot has appropriate permissions in Mattermost
-   - Check that the bot is a member of the channel
-
-3. **MCP Tool Errors:**
-   - Verify that the tools are properly defined in the MCP server
-   - Check the input format for tool calls
-   - Use the mcp_tool_caller.py utility to test tools directly
-
-## Next Steps
-
-1. **Add support for npx based** MCP servers
-2. **Using Tool calling Agent** to orchstrate tools in MCP servers
-2. **Implement authentication** for secure communication
-3. **Add support for file uploads** and other Mattermost features
-
-
-### Watch the full demo video:
-
-<a href="https://www.youtube.com/watch?v=YPtfqUstfTI" target="_blank">
-  <img src="https://img.youtube.com/vi/YPtfqUstfTI/maxresdefault.jpg" alt="Watch the demo video" width="800"/>
-</a>
-
-
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

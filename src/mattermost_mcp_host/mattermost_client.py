@@ -29,8 +29,6 @@ class MattermostClient:
     def connect(self):
         """Connect to the Mattermost server"""
         self.driver.login()
-        # if self.use_websocket:
-        #     self.driver.init_websocket(event_handler=None)
         return self
 
     async def start_websocket(self):
@@ -82,18 +80,25 @@ class MattermostClient:
         """
         self.message_handlers.append(handler)
 
-    def post_message(self, channel_id, message):
+    def post_message(self, channel_id, message, root_id=None):
         """
         Post a message to a channel
         
         Args:
             channel_id: Channel ID
             message: Message text
+            root_id: Optional ID of the parent message for threading
         """
-        return self.driver.posts.create_post({
+        post_data = {
             'channel_id': channel_id,
             'message': message
-        })
+        }
+        
+        # If root_id is provided, add it to create a threaded reply
+        if root_id:
+            post_data['root_id'] = root_id
+        
+        return self.driver.posts.create_post(post_data)
 
     def get_messages(self, channel_id, limit=10):
         """
@@ -118,6 +123,18 @@ class MattermostClient:
     def get_teams(self):
         """Get all teams the bot has access to"""
         return self.driver.teams.get_teams()
+
+    def get_thread_posts(self, post_id):
+        """
+        Get all posts in a thread
+        
+        Args:
+            post_id: ID of the root post in the thread
+            
+        Returns:
+            Dictionary of posts in the thread
+        """
+        return self.driver.posts.get_thread(post_id)
 
     def close(self):
         """Close the connection to the Mattermost server"""

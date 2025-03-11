@@ -232,11 +232,56 @@ async def initialize_mattermost_data():
         print(f"Error initializing Mattermost data: {str(e)}")
         return {}
 
+async def fetch_pinned_posts(channel_id: str):
+    """Fetch pinned posts for a specific channel"""
+    base_url = await get_mattermost_base_url()
+    headers = await get_mattermost_headers()
+    
+    async with aiohttp.ClientSession() as session:
+        url = f"{base_url}/channels/{channel_id}/pinned"
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                pinned_posts = await response.json()
+                return pinned_posts
+            else:
+                error = await response.text()
+                raise ValueError(f"Failed to get pinned posts. Status: {response.status}, Error: {error}")
+
+async def fetch_channel_stats(channel_id: str):
+    """Fetch statistics for a specific channel"""
+    base_url = await get_mattermost_base_url()
+    headers = await get_mattermost_headers()
+    
+    async with aiohttp.ClientSession() as session:
+        url = f"{base_url}/channels/{channel_id}/stats"
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                stats = await response.json()
+                return stats
+            else:
+                error = await response.text()
+                raise ValueError(f"Failed to get channel stats. Status: {response.status}, Error: {error}")
+
+async def fetch_channel_members(channel_id: str):
+    """Fetch members of a specific channel"""
+    base_url = await get_mattermost_base_url()
+    headers = await get_mattermost_headers()
+    
+    async with aiohttp.ClientSession() as session:
+        url = f"{base_url}/channels/{channel_id}/members"
+        async with session.get(url, headers=headers) as response:
+            if response.status == 200:
+                members = await response.json()
+                return members
+            else:
+                error = await response.text()
+                raise ValueError(f"Failed to get channel members. Status: {response.status}, Error: {error}")
+
 @server.list_resources()
 async def handle_list_resources() -> list[types.Resource]:
     """
     List available Mattermost resources.
-    Each channel and post is exposed as a resource.
+    Each channel, post, and data point is exposed as a resource.
     """
     resources = []
     
@@ -298,8 +343,38 @@ async def handle_list_resources() -> list[types.Resource]:
                                     mimeType="text/plain",
                                 )
                             )
+            
+            # Add pinned posts resources
+            resources.append(
+                types.Resource(
+                    uri=AnyUrl(f"mattermost://pinned/{channel_id}"),
+                    name=f"Pinned Posts: {channel_name}",
+                    description=f"Pinned posts in Mattermost channel: {channel_name}",
+                    mimeType="application/json",
+                )
+            )
+            
+            # Add channel statistics resources
+            resources.append(
+                types.Resource(
+                    uri=AnyUrl(f"mattermost://stats/{channel_id}"),
+                    name=f"Channel Stats: {channel_name}",
+                    description=f"Statistics for Mattermost channel: {channel_name}",
+                    mimeType="application/json",
+                )
+            )
+            
+            # Add channel members resources
+            resources.append(
+                types.Resource(
+                    uri=AnyUrl(f"mattermost://members/{channel_id}"),
+                    name=f"Channel Members: {channel_name}",
+                    description=f"Members of Mattermost channel: {channel_name}",
+                    mimeType="application/json",
+                )
+            )
     except Exception as e:
-        print(f"Error listing resources: {str(e)}")
+        logger.error(f"Error listing resources: {str(e)}")
     
     return resources
 
@@ -393,6 +468,48 @@ async def handle_read_resource(uri: AnyUrl) -> str:
                     error = await response.text()
                     raise ValueError(f"Failed to get post. Status: {response.status}, Error: {error}")
     
+    elif resource_type == "pinned":
+        # Get pinned posts for a channel
+        try:
+            pinned_posts = await fetch_pinned_posts(resource_id)
+            formatted_posts = []
+            
+            for post in pinned_posts:
+                username = post.get("username", "unknown")
+                create_time = datetime.fromtimestamp(post.get("create_at", 0)/1000)
+                message = post.get("message", "")
+                
+                formatted_posts.append(f"[{create_time}] {username}: {message}")
+            
+            return "\n\n".join(formatted_posts)
+        except Exception as e:
+            return f"Error retrieving pinned posts: {str(e)}"
+    
+    elif resource_type == "stats":
+        # Get channel statistics
+        try:
+            stats = await fetch_channel_stats(resource_id)
+            member_count = stats.get("member_count", 0)
+            
+            return f"Channel Statistics\n-------------------\nMembers: {member_count}"
+        except Exception as e:
+            return f"Error retrieving channel statistics: {str(e)}"
+    
+    elif resource_type == "members":
+        # Get channel members
+        try:
+            members = await fetch_channel_members(resource_id)
+            member_list = []
+            
+            for member in members:
+                # You might want to enhance this with additional user information
+                user_id = member.get("user_id", "unknown")
+                member_list.append(f"- User ID: {user_id}")
+            
+            return f"Channel Members\n---------------\n" + "\n".join(member_list)
+        except Exception as e:
+            return f"Error retrieving channel members: {str(e)}"
+    
     raise ValueError(f"Unsupported resource type: {resource_type}")
 
 @server.list_prompts()
@@ -425,6 +542,69 @@ async def handle_list_prompts() -> list[types.Prompt]:
                     name="post_id",
                     description="ID of the root post to analyze",
                     required=True,
+                )
+            ],
+        ),
+        types.Prompt(
+            name="meeting-notes-template",
+            description="Generate a meeting notes template for team meetings",
+            arguments=[
+                types.PromptArgument(
+                    name="meeting_type",
+                    description="Type of meeting (standup, planning, retrospective, etc.)",
+                    required=True,
+                ),
+                types.PromptArgument(
+                    name="team_name",
+                    description="Name of the team",
+                    required=True,
+                ),
+                types.PromptArgument(
+                    name="agenda_items",
+                    description="Comma-separated list of agenda items",
+                    required=False,
+                )
+            ],
+        ),
+        types.Prompt(
+            name="project-status-update",
+            description="Generate a project status update template",
+            arguments=[
+                types.PromptArgument(
+                    name="project_name",
+                    description="Name of the project",
+                    required=True,
+                ),
+                types.PromptArgument(
+                    name="milestones",
+                    description="Comma-separated list of project milestones",
+                    required=False,
+                ),
+                types.PromptArgument(
+                    name="challenges",
+                    description="Any challenges or blockers to mention",
+                    required=False,
+                )
+            ],
+        ),
+        types.Prompt(
+            name="team-onboarding",
+            description="Generate onboarding information for new team members",
+            arguments=[
+                types.PromptArgument(
+                    name="team_name",
+                    description="Name of the team",
+                    required=True,
+                ),
+                types.PromptArgument(
+                    name="key_channels",
+                    description="Comma-separated list of key channels to join",
+                    required=False,
+                ),
+                types.PromptArgument(
+                    name="key_resources",
+                    description="Comma-separated list of key resources or links",
+                    required=False,
                 )
             ],
         )
@@ -566,6 +746,81 @@ async def handle_get_prompt(
                 )
             ],
         )
+    
+    elif name == "meeting-notes-template":
+        meeting_type = arguments.get("meeting_type")
+        team_name = arguments.get("team_name")
+        agenda_items = arguments.get("agenda_items", "")
+        
+        if not meeting_type or not team_name:
+            raise ValueError("Missing required arguments: meeting_type and team_name")
+        
+        # Format agenda items if provided
+        agenda_formatted = ""
+        if agenda_items:
+            items = [item.strip() for item in agenda_items.split(",")]
+            agenda_formatted = "\n".join([f"- {item}" for item in items])
+        
+        return types.GetPromptResult(
+            description=f"Meeting Notes Template for {team_name} {meeting_type} meeting",
+            messages=[
+                types.PromptMessage(
+                    role="user",
+                    content=types.TextContent(
+                        type="text",
+                        text=f"Please create a detailed meeting notes template for a {meeting_type} meeting for the {team_name} team. The template should include standard sections like attendees, agenda, discussion points, action items, and next steps.\n\nAgenda items to include:\n{agenda_formatted}",
+                    ),
+                )
+            ],
+        )
+    
+    elif name == "project-status-update":
+        project_name = arguments.get("project_name")
+        milestones = arguments.get("milestones", "")
+        challenges = arguments.get("challenges", "")
+        
+        if not project_name:
+            raise ValueError("Missing required argument: project_name")
+        
+        # Format milestones if provided
+        milestones_formatted = ""
+        if milestones:
+            items = [item.strip() for item in milestones.split(",")]
+            milestones_formatted = "\n".join([f"- {item}" for item in items])
+        
+        return types.GetPromptResult(
+            description=f"Project Status Update for {project_name}",
+            messages=[
+                types.PromptMessage(
+                    role="user",
+                    content=types.TextContent(
+                        type="text",
+                        text=f"Please create a comprehensive project status update for the {project_name} project. Include sections for overall status, recent accomplishments, upcoming milestones, any risks or challenges, and next steps.\n\nMilestones to include:\n{milestones_formatted}\n\nChallenges to address:\n{challenges}",
+                    ),
+                )
+            ],
+        )
+    
+    elif name == "team-onboarding":
+        team_name = arguments.get("team_name")
+        key_channels = arguments.get("key_channels", "")
+        key_resources = arguments.get("key_resources", "")
+        
+        if not team_name:
+            raise ValueError("Missing required argument: team_name")
+        
+        return types.GetPromptResult(
+            description=f"Onboarding Information for {team_name} team",
+            messages=[
+                types.PromptMessage(
+                    role="user",
+                    content=types.TextContent(
+                        type="text",
+                        text=f"Please create a comprehensive onboarding guide for new members joining the {team_name} team. Include sections for team overview, key contacts, communication channels, important resources, and getting started steps.\n\nKey channels to join: {key_channels}\n\nKey resources: {key_resources}",
+                    ),
+                )
+            ],
+        )
         
     raise ValueError(f"Unknown prompt: {name}")
 
@@ -588,14 +843,41 @@ async def handle_list_tools() -> list[types.Tool]:
             },
         ),
         types.Tool(
-            name="list-channels",
-            description="List channels in a team",
+            name="create-project-channel",
+            description="Create a new channel for a project",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "team_id": {"type": "string"},
+                    "project_name": {"type": "string"},
+                    "description": {"type": "string"},
+                    "members": {"type": "array", "items": {"type": "string"}},
                 },
-                "required": ["team_id"],
+                "required": ["team_id", "project_name"],
+            },
+        ),
+        types.Tool(
+            name="pin-important-message",
+            description="Pin an important message in a channel",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "post_id": {"type": "string"},
+                },
+                "required": ["post_id"],
+            },
+        ),
+        types.Tool(
+            name="add-reaction",
+            description="Add a reaction emoji to a post",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "string"},
+                    "post_id": {"type": "string"},
+                    "emoji_name": {"type": "string"},
+                },
+                "required": ["user_id", "post_id", "emoji_name"],
             },
         ),
         types.Tool(
@@ -652,39 +934,95 @@ async def handle_call_tool(
                 )
             ]
     
-    elif name == "list-channels":
+    elif name == "create-project-channel":
         team_id = arguments.get("team_id")
+        project_name = arguments.get("project_name")
+        description = arguments.get("description", "")
         
-        if not team_id:
-            raise ValueError("Missing required argument: team_id")
+        if not team_id or not project_name:
+            raise ValueError("Missing required arguments: team_id and project_name")
             
         try:
-            channels = await fetch_channels(team_id)
+            # Convert project name to valid channel name (lowercase, no spaces)
+            channel_name = project_name.lower().replace(" ", "-")[:64]
             
-            channel_list = []
-            for channel in channels:
-                channel_list.append({
-                    "id": channel.get("id"),
-                    "name": channel.get("name"),
-                    "display_name": channel.get("display_name"),
-                    "type": channel.get("type"),
-                    "purpose": channel.get("purpose")
-                })
-                
-            team_name = team_id_to_name.get(team_id, team_id)
+            options = {
+                "name": channel_name,
+                "display_name": project_name,
+                "purpose": description,
+                "type": "O"  # Open channel
+            }
+            
+            channel = await create_channel(team_id, options)
+            
+            # Notify clients that resources have changed
+            await server.request_context.session.send_resource_list_changed()
             
             return [
                 types.TextContent(
                     type="text",
-                    text=f"Channels in team '{team_name}':\n\n" + 
-                         "\n".join([f"- {c['display_name']} ({c['name']}) [ID: {c['id']}]" for c in channel_list])
+                    text=f"Project channel created successfully.\nName: {channel_name}\nChannel ID: {channel.get('id')}",
                 )
             ]
         except Exception as e:
             return [
                 types.TextContent(
                     type="text",
-                    text=f"Error listing channels: {str(e)}",
+                    text=f"Error creating project channel: {str(e)}",
+                )
+            ]
+    
+    elif name == "pin-important-message":
+        post_id = arguments.get("post_id")
+        
+        if not post_id:
+            raise ValueError("Missing required argument: post_id")
+            
+        try:
+            pinned_post = await pin_post(post_id)
+            
+            # Notify clients that resources have changed
+            await server.request_context.session.send_resource_list_changed()
+            
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"Message pinned successfully.\nPost ID: {post_id}",
+                )
+            ]
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"Error pinning message: {str(e)}",
+                )
+            ]
+    
+    elif name == "add-reaction":
+        user_id = arguments.get("user_id")
+        post_id = arguments.get("post_id")
+        emoji_name = arguments.get("emoji_name")
+        
+        if not user_id or not post_id or not emoji_name:
+            raise ValueError("Missing required arguments: user_id, post_id, and emoji_name")
+            
+        try:
+            reaction = await add_reaction(user_id, post_id, emoji_name)
+            
+            # Notify clients that resources have changed
+            await server.request_context.session.send_resource_list_changed()
+            
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"Reaction added successfully.\nEmoji: {emoji_name}\nPost ID: {post_id}",
+                )
+            ]
+        except Exception as e:
+            return [
+                types.TextContent(
+                    type="text",
+                    text=f"Error adding reaction: {str(e)}",
                 )
             ]
     
@@ -761,6 +1099,56 @@ async def handle_call_tool(
             ]
     
     raise ValueError(f"Unknown tool: {name}")
+
+async def create_channel(team_id: str, options: dict):
+    """Create a new channel in a team"""
+    base_url = await get_mattermost_base_url()
+    headers = await get_mattermost_headers()
+    
+    async with aiohttp.ClientSession() as session:
+        url = f"{base_url}/channels"
+        options["team_id"] = team_id
+        async with session.post(url, headers=headers, json=options) as response:
+            if response.status == 201:
+                channel = await response.json()
+                return channel
+            else:
+                error = await response.text()
+                raise ValueError(f"Failed to create channel. Status: {response.status}, Error: {error}")
+
+async def pin_post(post_id: str):
+    """Pin a post to a channel"""
+    base_url = await get_mattermost_base_url()
+    headers = await get_mattermost_headers()
+    
+    async with aiohttp.ClientSession() as session:
+        url = f"{base_url}/posts/{post_id}/pin"
+        async with session.post(url, headers=headers) as response:
+            if response.status == 200:
+                return await response.json()
+            else:
+                error = await response.text()
+                raise ValueError(f"Failed to pin post. Status: {response.status}, Error: {error}")
+
+async def add_reaction(user_id: str, post_id: str, emoji_name: str):
+    """Add a reaction to a post"""
+    base_url = await get_mattermost_base_url()
+    headers = await get_mattermost_headers()
+    
+    reaction_data = {
+        "user_id": user_id,
+        "post_id": post_id,
+        "emoji_name": emoji_name
+    }
+    
+    async with aiohttp.ClientSession() as session:
+        url = f"{base_url}/reactions"
+        async with session.post(url, headers=headers, json=reaction_data) as response:
+            if response.status == 201:
+                return await response.json()
+            else:
+                error = await response.text()
+                raise ValueError(f"Failed to add reaction. Status: {response.status}, Error: {error}")
 
 async def main():
     # Attempt to initialize Mattermost data
