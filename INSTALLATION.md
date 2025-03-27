@@ -1,4 +1,4 @@
-# Installation Guide
+# Installation Guide - WIP
 
 This guide provides detailed instructions for installing and configuring the Mattermost MCP Host.
 
@@ -21,7 +21,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 2. **Install the package**
 ```bash
-pip install mattermost-mcp-host
+uv sync 
 ```
 
 3. **Configure environment**
@@ -38,25 +38,12 @@ OPENAI_API_KEY=your-openai-key
 
 1. **Install with all dependencies**
 ```bash
-pip install "mattermost-mcp-host[all]"
+uv sync --dev --all-extras
 ```
 
 2. **Configure AI providers**
-Add relevant API keys to your `.env`:
-```env
-# OpenAI
-OPENAI_API_KEY=your-openai-key
-
-# Azure OpenAI
-AZURE_OPENAI_API_KEY=your-azure-key
-AZURE_OPENAI_ENDPOINT=your-azure-endpoint
-
-# Anthropic
-ANTHROPIC_API_KEY=your-anthropic-key
-
-# Google Gemini
-GOOGLE_API_KEY=your-google-key
-```
+Add relevant API keys to your `.env`.
+Refer to `.env.example` for required keys.
 
 ### Option 3: Development Installation
 
@@ -95,7 +82,7 @@ Edit `src/mattermost_mcp_host/mcp-servers.json`:
 1. **Create a Bot Account**
 - Go to Integrations > Bot Accounts > Add Bot Account
 - Give it a name and description
-- Save the access token for configuration
+- Save the access token in the .env file
 
 2. **Required Bot Permissions**
 - post_all
@@ -107,14 +94,6 @@ Edit `src/mattermost_mcp_host/mcp-servers.json`:
 3. **Add Bot to Team/Channel**
 - Invite the bot to your team
 - Add bot to desired channels
-
-## Verification
-
-Test your installation:
-
-```bash
-python -m mattermost_mcp_host verify
-```
 
 ## Troubleshooting
 
@@ -132,99 +111,3 @@ python -m mattermost_mcp_host verify
 - Check server logs
 - Verify server configurations
 - Ensure required dependencies are installed
-```
-
-For the README.md, we should update the Prerequisites section to match the new Python version requirement and add the detailed installation options. Here are the relevant sections to update:
-
-
-````32:37:README.md
-```
-
-3. **Install dependencies**
-
-```bash
-pip install -r requirements.txt
-````
-
-
-Replace with:
-```markdown
-## Prerequisites
-
-- Python 3.13.1+ 
-- Mattermost server (local or remote)
-- Bot account in Mattermost with appropriate permissions
-- Access to at least one LLM API:
-  - OpenAI (default)
-  - Azure OpenAI (optional)
-  - Anthropic Claude (optional)
-  - Google Gemini (optional)
-```
-
-The installation section should also be updated:
-
-````38:72:README.md
-```
-
-## Configuration
-
-1. **Copy the example environment file**
-
-```bash
-cp .env.example .env
-```
-
-2. **Configure your environment variables**
-
-Copy `.env.example` to `.env` and edit
-
-## Usage
-
-### Starting the Server
-
-```bash
-python src/ollama_mcp_server/main.py
-```
-
-### Available Tools
-
-1. **generate**: Generate text using the configured model
-   ```json
-   {
-     "prompt": "Write a short story about a robot",
-     "model": "llama3.2:latest",  // optional
-     "max_tokens": 500   // optional
-   }
-   ```
-
-2. **chat**: Have a conversation with the model
-   ```json
-````
-
-
-Replace with a reference to the detailed installation guide:
-```markdown
-## Installation
-
-For detailed installation instructions, see [INSTALLATION.md](INSTALLATION.md).
-
-Quick start:
-```bash
-pip install mattermost-mcp-host
-```
-
-For all AI providers:
-```bash
-pip install "mattermost-mcp-host[all]"
-```
-
-Configure through `.env`:
-```env
-MATTERMOST_URL=http://localhost:8065
-MATTERMOST_TOKEN=your-bot-token
-MATTERMOST_TEAM_NAME=your-team
-OPENAI_API_KEY=your-openai-key  # Required for basic installation
-```
-```
-
-These updates provide clearer installation instructions and better align with the project's current state and requirements.

@@ -1,4 +1,7 @@
 .env
+
+.vscode/
+
 # OS-specific files
 .DS_Store
 # Git
@@ -18,3 +21,6 @@ wheels/
 .pytest_cache
 
 .idea
+
+# Docs for Coding Agents
+.docs/

@@ -1,77 +1,162 @@
 # Mattermost MCP Host
 
-A Mattermost integration with Model Context Protocol (MCP) servers that leverages AI language models to provide an intelligent interface for managing and executing tools through Mattermost.
+A Mattermost integration that connects to Model Context Protocol (MCP) servers, leveraging a LangGraph-based AI agent to provide an intelligent interface for interacting with users and executing tools directly within Mattermost.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.13.1%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Package Manager](https://img.shields.io/badge/package%20manager-uv-purple)
 
 ## Features
 
-- 🤖 **AI-Powered Assistance**: Integrates with multiple AI providers (Azure OpenAI, OpenAI, Anthropic Claude, Google Gemini)
-- 🔌 **MCP Server Integration**: Connect to any Model Context Protocol (MCP) server
-- 🧰 **Tool Management**: Access and execute tools from connected MCP servers
-- 💬 **Thread-Based Conversations**: Maintains context within Mattermost threads
-- 🔄 **Tool Chaining**: AI can call multiple tools in sequence to accomplish complex tasks
-- 🔍 **Resource Discovery**: List available tools, resources, and prompts from MCP servers
-- 📚 **Multiple Provider Support**: Choose your preferred AI provider with a simple configuration change
+- 🤖 **Langgraph Agent Integration**: Uses a LangGraph agent to understand user requests and orchestrate responses.
+- 🔌 **MCP Server Integration**: Connects to multiple MCP servers defined in `mcp-servers.json`.
+- 🛠️ **Dynamic Tool Loading**: Automatically discovers tools from connected MCP servers and makes them available to the AI agent. Converts MCP tools to langchain structured tools.
+- 💬 **Thread-Aware Conversations**: Maintains conversational context within Mattermost threads for coherent interactions.
+- 🔄 **Intelligent Tool Use**: The AI agent can decide when to use available tools (including chaining multiple calls) to fulfill user requests.
+- 🔍 **MCP Capability Discovery**: Allows users to list available servers, tools, resources, and prompts via direct commands.
+- #️⃣ **Direct Command Interface**: Interact directly with MCP servers using a command prefix (default: `#`).
 
-## Quick Start
 
-1. Install the package:
-```bash
-pip install mattermost-mcp-host
-```
+## Overview
 
-2. Configure environment:
-```env
-MATTERMOST_URL=http://localhost:8065
-MATTERMOST_TOKEN=your-bot-token
-MATTERMOST_TEAM_NAME=your-team
-OPENAI_API_KEY=your-openai-key
-```
+The integration works as follows:
 
-3. Start the integration:
-```bash
-python -m mattermost_mcp_host
-```
+1.  **Mattermost Connection (`mattermost_client.py`)**: Connects to the Mattermost server via API and WebSocket to listen for messages in a specified channel.
+2.  **MCP Connections (`mcp_client.py`)**: Establishes connections (primarily `stdio`) to each MCP server defined in `src/mattermost_mcp_host/mcp-servers.json`. It discovers available tools on each server.
+3.  **Agent Initialization (`agent/llm_agent.py`)**: A `LangGraphAgent` is created, configured with the chosen LLM provider and the dynamically loaded tools from all connected MCP servers.
+4.  **Message Handling (`main.py`)**:
+    *   If a message starts with the command prefix (`#`), it's parsed as a direct command to list servers/tools or call a specific tool via the corresponding `MCPClient`.
+    *   Otherwise, the message (along with thread history) is passed to the `LangGraphAgent`.
+5.  **Agent Execution**: The agent processes the request, potentially calling one or more MCP tools via the `MCPClient` instances, and generates a response.
+6.  **Response Delivery**: The final response from the agent or command execution is posted back to the appropriate Mattermost channel/thread.
+
+## Setup
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd mattermost-mcp-host
+    ```
+
+2.  **Install:**
+    *   Using uv (recommended):
+        ```bash
+        # Install uv if you don't have it yet
+        # curl -LsSf https://astral.sh/uv/install.sh | sh 
+
+        # Activate venv
+        source .venv/bin/activate
+        
+        # Install the package with uv
+        uv sync
+
+        # To install dev dependencies
+        uv sync --dev --all-extras
+        ```
+
+3.  **Configure Environment (`.env` file):**
+    Copy the `.env.example` and fill in the values or
+    Create a `.env` file in the project root (or set environment variables):
+    ```env
+    # Mattermost Details
+    MATTERMOST_URL=http://your-mattermost-url
+    MATTERMOST_TOKEN=your-bot-token # Needs permissions to post, read channel, etc.
+    MATTERMOST_TEAM_NAME=your-team-name
+    MATTERMOST_CHANNEL_NAME=your-channel-name # Channel for the bot to listen in
+    # MATTERMOST_CHANNEL_ID= # Optional: Auto-detected if name is provided
+
+    # LLM Configuration (Azure OpenAI is default)
+    DEFAULT_PROVIDER=azure
+    AZURE_OPENAI_ENDPOINT=your-azure-endpoint
+    AZURE_OPENAI_API_KEY=your-azure-api-key
+    AZURE_OPENAI_DEPLOYMENT=your-deployment-name # e.g., gpt-4o
+    # AZURE_OPENAI_API_VERSION= # Optional, defaults provided
+
+    # Optional: Other providers (install with `[all]` extra)
+    # OPENAI_API_KEY=...
+    # ANTHROPIC_API_KEY=...
+    # GOOGLE_API_KEY=...
+
+    # Command Prefix
+    COMMAND_PREFIX=# 
+    ```
+    See `.env.example` for more options.
+
+4.  **Configure MCP Servers:**
+    Edit `src/mattermost_mcp_host/mcp-servers.json` to define the MCP servers you want to connect to. See `src/mattermost_mcp_host/mcp-servers-example.json`.
+    Depending on the server configuration, you might `npx`, `uvx`, `docker` installed in your system and in path.
+
+5.  **Start the Integration:**
+    ```bash
+    mattermost_mcp_host
+    ```
 
 For detailed installation instructions and additional configuration options, see [INSTALLATION.md](INSTALLATION.md).
 
 ## Prerequisites
 
 - Python 3.13.1+
-- Mattermost server (local or remote)
-- Bot account in Mattermost with appropriate permissions
-- Access to at least one LLM API:
-  - OpenAI (default)
-  - Azure OpenAI (optional)
-  - Anthropic Claude (optional)
-  - Google Gemini (optional)
+- uv package manager (recommended)
+- Mattermost server instance
+- Mattermost Bot Account with API token
+- Access to a LLM API (Azure OpenAI)
+- One or more MCP servers configured in `mcp-servers.json`.
+- Tavily web search requires `TAVILY_API_KEY`
 
-## Available Commands
+## Usage in Mattermost
 
-Once the integration is running, use these commands in your Mattermost channel:
+Once the integration is running and connected:
 
-- `/help` - Display help information
-- `/servers` - List available MCP servers
-- `/<server_name> tools` - List available tools for a specific server
-- `/<server_name> call <tool_name> <args>` - Call a specific tool
+1.  **Direct Chat:** Simply chat in the configured channel or with the bot. The AI agent will respond, using tools as needed. It maintains context within message threads.
+2.  **Direct Commands:** Use the command prefix (default `#`) for specific actions:
+    *   `#help` - Display help information.
+    *   `#servers` - List configured and connected MCP servers.
+    *   `#<server_name> tools` - List available tools for `<server_name>`.
+    *   `#<server_name> call <tool_name> <json_arguments>` - Call `<tool_name>` on `<server_name>` with arguments provided as a JSON string.
+        *   Example: `#my-server call echo '{"message": "Hello MCP!"}'`
+    *   `#<server_name> resources` - List available resources for `<server_name>`.
+    *   `#<server_name> prompts` - List available prompts for `<server_name>`.
 
 
-## MCP Tool Caller Utility
 
-The `mcp_tool_caller.py` utility allows direct command-line interaction with MCP servers:
+## Next Steps
+- ⚙️ **Configurable LLM Backend**: Supports multiple AI providers (Azure OpenAI default, OpenAI, Anthropic Claude, Google Gemini) via environment variables.
 
-1. List server capabilities:
-```bash
-python utils/mcp_tool_caller.py list --server-name simple-mcp-server
-```
+## Mattermost Setup
 
-2. Call specific tools:
-```bash
-python utils/mcp_tool_caller.py call --server-name simple-mcp-server --tool echo --tool-args '{"input": "Hello World"}'
-```
+1. **Create a Bot Account**
+- Go to Integrations > Bot Accounts > Add Bot Account
+- Give it a name and description
+- Save the access token in the .env file
+
+2. **Required Bot Permissions**
+- post_all
+- create_post
+- read_channel
+- create_direct_channel
+- read_user
+
+3. **Add Bot to Team/Channel**
+- Invite the bot to your team
+- Add bot to desired channels
+
+### Troubleshooting
+
+1. **Connection Issues**
+- Verify Mattermost server is running
+- Check bot token permissions
+- Ensure correct team/channel names
+
+2. **AI Provider Issues**
+- Validate API keys
+- Check API quotas and limits
+- Verify network access to API endpoints
+
+3. **MCP Server Issues**
+- Check server logs
+- Verify server configurations
+- Ensure required dependencies are installed and env variables are defined
+
 
 ## Contributing
 

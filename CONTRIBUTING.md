@@ -34,7 +34,7 @@ By participating in this project, you agree to abide by our Code of Conduct. Ple
 - Include type hints where appropriate
 - Keep functions focused and modular
 
-### Testing
+### Testing (Not implemented)
 - Write unit tests for new features
 - Ensure all tests pass before submitting PR
 - Run tests using: `pytest`
@@ -90,7 +90,5 @@ By contributing to Mattermost MCP Host, you agree that your contributions will b
 
 Feel free to:
 - Open an issue for questions
-- Join our community discussions
-- Reach out to maintainers
 
 Thank you for contributing to Mattermost MCP Host!
