@@ -1,16 +1,19 @@
+from mattermost_mcp_host.mcp_client import MCPClient
+from mattermost_mcp_host.mattermost_client import MattermostClient
+import mattermost_mcp_host.config as config
+from mattermost_mcp_host.agent import LangGraphAgent
+
 import sys
 import asyncio
 import logging
 import json
 from pathlib import Path
-from mattermost_mcp_host.mcp_client import MCPClient
-from mattermost_mcp_host.mattermost_client import MattermostClient
-import mattermost_mcp_host.config as config
-from mattermost_mcp_host.llm_clients import LLMClient
 
 # Add these imports
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import traceback
+
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 
 PYTHON_EXECUTABLE = sys.executable
 
@@ -43,41 +46,47 @@ class MattermostMCPIntegration:
         self.mattermost_client = None
         self.channel_id = config.MATTERMOST_CHANNEL_ID
         self.command_prefix = config.COMMAND_PREFIX
-        self.llm_client = LLMClient(config.DEFAULT_PROVIDER, config.DEFAULT_MODEL)
         
     async def initialize(self):
-        """Initialize both clients and connect them"""
-        # Initialize MCP clients based on configuration
+        """Initialize the mattermost client and connect to it via Websocket"""
+        
         try:
             # Load server configurations
             server_configs = load_server_configs()
             logger.info(f"Found {len(server_configs)} MCP servers in config")
             
+            all_langchain_tools = []
             # Initialize each MCP client
             for server_name, server_config in server_configs.items():
-                if server_config.get('type') == 'stdio':
-                    try:
-                        client = MCPClient(
-                            mcp_command=server_config["command"],
-                            mcp_args=server_config["args"],
-                            env=config.MCP_ENV
-                        )
-                        await client.connect()
-                        self.mcp_clients[server_name] = client
-                        logger.info(f"Connected to MCP server '{server_name}' via stdio")
-                    except Exception as e:
-                        logger.error(f"Failed to connect to MCP server '{server_name}': {str(e)}")
-                        # Continue with other servers even if one fails
-                        continue
-                else:
-                    logger.warning(f"Unknown server type '{server_config.get('type')}' for server '{server_name}'. Skipping.")
+                try:
+                    client = MCPClient(server_config=server_config)
 
+                    await client.connect()
+                    self.mcp_clients[server_name] = client
+                    lanchain_tools = await client.convert_mcp_tools_to_langchain()
+                    all_langchain_tools.extend(lanchain_tools)
+                    logger.info(f"Connected to MCP server '{server_name}' via stdio")
+                except Exception as e:
+                    logger.error(f"Failed to connect to MCP server '{server_name}': {str(e)}")
+                    # Continue with other servers even if one fails
+                    continue
+            
             if not self.mcp_clients:
                 raise ValueError("No MCP servers could be connected")
 
         except Exception as e:
             logger.error(f"Failed to initialize MCP servers: {str(e)}")
             raise
+        
+        # Set up agent tools
+        logger.info(f"Setting up agent with {all_langchain_tools} tools")
+        logger.info(f"Number of tools : {len(all_langchain_tools)}")
+
+        # Initialize agent based on configuration
+        if config.AGENT_TYPE.lower() == 'simple':
+            self.agent = LangGraphAgent(config.DEFAULT_PROVIDER, config.DEFAULT_MODEL, tools=all_langchain_tools, system_prompt=config.DEFAULT_SYSTEM_PROMPT)
+        else:
+            raise ValueError(f"Unknown agent type: {config.AGENT_TYPE}")
 
         # Initialize Mattermost client
         try:
@@ -115,7 +124,7 @@ class MattermostMCPIntegration:
         await self.mattermost_client.start_websocket()
         logger.info(f"Listening for {self.command_prefix} commands in channel {self.channel_id}")
         
-    async def get_thread_history(self, root_id=None, channel_id=None):
+    async def get_thread_history(self, root_id=None, channel_id=None) -> List[Dict[str, Any]]:
         """
         Fetch conversation history from a Mattermost thread
         
@@ -172,7 +181,7 @@ class MattermostMCPIntegration:
             logger.error(traceback.format_exc())
             return []
 
-    async def handle_llm_request(self, channel_id: str, message: str, user_id: str, post_id: str = None):
+    async def handle_llm_request(self, channel_id: str, message: str, user_id: str, post_id: str = None, root_id: str = None):
         """
         Handle a request to the LLM
         
@@ -184,10 +193,11 @@ class MattermostMCPIntegration:
         """
         try:
             # Fetch thread history - if post_id exists, it's the root of a new thread
-            root_id = post_id
+            root_id = post_id if root_id is None or root_id == "" else root_id
+            logger.info(f"Fetching thread history for root_id: {root_id}")
             
             # Send a typing indicator
-            await self.send_response(channel_id, "Processing your request...", root_id)
+            # await self.send_response(channel_id, "Processing your request...", root_id)
             
             # Collect available tools from all connected MCP servers
             all_tools = {}
@@ -203,191 +213,31 @@ class MattermostMCPIntegration:
                 except Exception as e:
                     logger.error(f"Error getting tools from {server_name}: {str(e)}")
             
-            # Convert MCP tools to OpenAI tools format
-            openai_tools = self.llm_client.convert_mcp_tools_to_openai_tools(all_tools)
-            
             # Get thread history (will be empty for a new conversation)
-            thread_messages = await self.get_thread_history(root_id, channel_id)
+            thread_history = await self.get_thread_history(root_id, channel_id)
             
-            # Add current message if not already in thread history
-            if not thread_messages or thread_messages[-1]["content"] != message:
-                thread_messages.append({
-                    "role": "user",
-                    "content": message
-                })
+            # Format the message for the agent
+            # The agent expects a query, history, and user_id
+            logger.info(f"Running agent with message: {message}")
             
-            # Call the LLM with thread history
-            response = await self.llm_client.generate_response(
-                prompt=message,
-                tools=openai_tools,
-                messages=thread_messages
+            # Run the agent with the user's message, thread history, and user ID
+            # Pass the thread history and user ID to the agent for proper memory management
+            result = await self.agent.run(
+                query=message,
+                history=thread_history,
+                user_id=user_id
             )
             
-            # Process the response
-            response_message = response.choices[0].message
-            
-            # Check if the model wants to use tools
-            if hasattr(response_message, "tool_calls") and response_message.tool_calls:
-                await self.handle_tool_calls(channel_id, response_message.tool_calls, all_tools, root_id, post_id)
-            else:
-                # Just return the text response
-                await self.send_response(channel_id, response_message.content or "No response generated", post_id)
+            # Extract the final response from the agent's messages
+            final_response = self.agent.extract_response(result["messages"])
+            logger.info(f"Agent response: {final_response}")
+                
+            await self.send_response(channel_id, final_response or "No response generated", root_id)
                 
         except Exception as e:
             logger.error(f"Error handling LLM request: {str(e)}")
             logger.error(traceback.format_exc())
-            await self.send_response(channel_id, f"Error processing your request: {str(e)}", post_id)
-    
-    async def handle_tool_calls(self, channel_id, tool_calls, all_tools, root_id=None, post_id=None):
-        """
-        Handle tool calls from the LLM
-        
-        Args:
-            channel_id: Channel ID
-            tool_calls: List of tool calls from the LLM
-            all_tools: Dictionary of available tools
-            root_id: Root post ID for the thread
-            post_id: Current post ID
-        """
-        thread_id = root_id or post_id
-        
-        # Extract and process each tool call
-        tool_results = []
-        for tool_call in tool_calls:
-            try:
-                function = tool_call.function
-                tool_name = function.name
-                
-                # Parse the function arguments
-                function_args = {}
-                if function.arguments:
-                    try:
-                        function_args = json.loads(function.arguments)
-                    except json.JSONDecodeError:
-                        logger.error(f"Failed to parse tool arguments: {function.arguments}")
-                        function_args = {"text": function.arguments}
-                
-                # Find the corresponding MCP tool
-                if tool_name in all_tools:
-                    # Direct match
-                    mcp_tool = all_tools[tool_name]
-                    server_name, tool_short_name = tool_name.split('.', 1)
-                else:
-                    # Try to find by short name (without server prefix)
-                    matching_tools = [
-                        (s_name, t_name, tool)
-                        for full_name, tool in all_tools.items()
-                        for s_name, t_name in [full_name.split('.', 1)]
-                        if t_name == tool_name
-                    ]
-                    
-                    if not matching_tools:
-                        await self.send_response(
-                            channel_id, 
-                            f"⚠️ Tool '{tool_name}' not found in any MCP server.", 
-                            thread_id
-                        )
-                        tool_results.append({
-                            "tool_call_id": tool_call.id,
-                            "role": "tool",
-                            "name": tool_name,
-                            "content": f"Tool '{tool_name}' not found in any MCP server."
-                        })
-                        continue
-                    
-                    # Use the first matching tool if multiple matches found
-                    server_name, tool_short_name, mcp_tool = matching_tools[0]
-                
-                # Call the tool via the MCP client
-                client = self.mcp_clients.get(server_name)
-                if not client:
-                    error_msg = f"Server '{server_name}' not found or not connected."
-                    await self.send_response(channel_id, f"⚠️ {error_msg}", thread_id)
-                    tool_results.append({
-                        "tool_call_id": tool_call.id,
-                        "role": "tool",
-                        "name": tool_name,
-                        "content": error_msg
-                    })
-                    continue
-                
-                # Log tool execution for debugging
-                logger.info(f"Calling tool '{tool_short_name}' on server '{server_name}' with args: {function_args}")
-                
-                # Execute the tool
-                await self.send_response(
-                    channel_id, 
-                    f"🔧 Executing tool: `{tool_short_name}` on server `{server_name}`...", 
-                    thread_id
-                )
-                result = await client.call_tool(tool_short_name, function_args)
-                
-                # Format and process tool result
-                result_str = str(result)
-                if isinstance(result, dict):
-                    # Try to format dict results nicely
-                    try:
-                        result_str = json.dumps(result, indent=2)
-                    except:
-                        result_str = str(result)
-                
-                await self.send_response(
-                    channel_id, 
-                    f"📊 Tool `{tool_short_name}` result:\n```\n{result_str}\n```", 
-                    thread_id
-                )
-                
-                # Add to tool results for LLM
-                tool_results.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": tool_name,
-                    "content": result_str
-                })
-                
-            except Exception as e:
-                error_msg = f"Error executing tool '{tool_call.function.name}': {str(e)}"
-                logger.error(error_msg)
-                logger.error(traceback.format_exc())
-                
-                await self.send_response(channel_id, f"⚠️ {error_msg}", thread_id)
-                
-                # Add error to tool results
-                tool_results.append({
-                    "tool_call_id": tool_call.id,
-                    "role": "tool",
-                    "name": tool_call.function.name,
-                    "content": error_msg
-                })
-        
-        # Get updated thread history
-        thread_messages = await self.get_thread_history(thread_id, channel_id)
-        
-        # Add tool results to messages for follow-up LLM call
-        thread_messages.extend(tool_results)
-        
-        # Call LLM again with tool results for final response
-        await self.send_response(channel_id, "🧠 Processing tool results...", thread_id)
-        
-        # Get tools again for the follow-up response
-        openai_tools = self.llm_client.convert_mcp_tools_to_openai_tools(all_tools)
-        
-        # Generate follow-up response
-        response = await self.llm_client.generate_response(
-            prompt="Please analyze the tool results and provide a final response.",
-            tools=openai_tools,  # Keep tools available for follow-up
-            messages=thread_messages
-        )
-        
-        # Process the follow-up response
-        final_message = response.choices[0].message
-        
-        # Send the final response
-        await self.send_response(channel_id, final_message.content or "No response generated", thread_id)
-        
-        # Check if we need to handle more tool calls (recursive)
-        if hasattr(final_message, "tool_calls") and final_message.tool_calls:
-            await self.handle_tool_calls(channel_id, final_message.tool_calls, all_tools, thread_id)
+            await self.send_response(channel_id, f"Error processing your request: {str(e)}", root_id)
 
     async def handle_message(self, post):
         """Handle incoming messages from Mattermost"""
@@ -402,51 +252,53 @@ class MattermostMCPIntegration:
             channel_id = post.get('channel_id')
             message = post.get('message', '')
             user_id = post.get('user_id')
-            post_id = post.get('id')  # Get the post ID for threading
+            post_id = post.get('id') 
+            root_id = post.get('root_id')  # Get the root post ID for threading
             
             # Skip messages from other channels if a specific channel is configured
             if self.channel_id and channel_id != self.channel_id:
                 logger.info(f'Received message from a different channel - {channel_id} than configured - {self.channel_id}')
                 # Only process direct messages to the bot and messages in the configured channel
-                if not any(team_member.get('mention_keys', []) in message for team_member in self.mattermost_client.driver.users.get_user_teams(user_id)):
-                    return
+                # if not any(team_member.get('mention_keys', []) in message for team_member in self.mattermost_client.driver.users.get_user_teams(user_id)):
+                #     return
             
             # Check if the message starts with the command prefix
             if message.startswith(self.command_prefix):
                 # Handle MCP command
-                await self.handle_command(channel_id, message, user_id, post_id)
-            elif message.startswith('!') or message.startswith('/'):
-                # Skip other commands
-                return
+                # Remove the command prefix before processing
+                message = message[len(self.command_prefix):].strip()
+                await self.handle_command(channel_id, message, user_id, post_id, root_id)
             else:
                 # Direct message to LLM
-                await self.handle_llm_request(channel_id, message, user_id, post_id)
+                await self.handle_llm_request(channel_id, message, user_id, post_id, root_id)
                 
         except Exception as e:
             logger.error(f"Error handling message: {str(e)}")
             logger.error(traceback.format_exc())
 
-    async def handle_command(self, channel_id, message_text, user_id, post_id=None):
+    async def handle_command(self, channel_id, message_text, user_id, post_id=None, root_id=None):
         """Handle command messages from Mattermost"""
         try:
+            root_id = post_id if root_id is None or root_id == "" else root_id
+
             # Split the command text
             command_parts = message_text.split()
             
             if len(command_parts) < 1:
-                await self.send_help_message(channel_id, post_id)
+                await self.send_help_message(channel_id, root_id)
                 return
             
             command = command_parts[0]
             
             if command == 'help':
-                await self.send_help_message(channel_id, post_id)
+                await self.send_help_message(channel_id, root_id)
                 return
             
             if command == 'servers':
                 response = "Available MCP servers:\n"
                 for name in self.mcp_clients.keys():
                     response += f"- {name}\n"
-                await self.send_response(channel_id, response, post_id)
+                await self.send_response(channel_id, response, root_id)
                 return
             
             # Check if the first argument is a server name
@@ -455,7 +307,7 @@ class MattermostMCPIntegration:
                 await self.send_response(
                     channel_id,
                     f"Unknown server '{server_name}'. Available servers: {', '.join(self.mcp_clients.keys())}",
-                    post_id
+                    root_id
                 )
                 return
             
@@ -463,7 +315,7 @@ class MattermostMCPIntegration:
                 await self.send_response(
                     channel_id,
                     f"Invalid command. Use {self.command_prefix}{server_name} <command> [arguments]",
-                    post_id
+                    root_id
                 )
                 return
             
@@ -476,14 +328,14 @@ class MattermostMCPIntegration:
                 response = f"Available tools for {server_name}:\n"
                 for name, tool in tools.items():
                     response += f"- {name}: {tool.description}\n"
-                await self.send_response(channel_id, response, post_id)
+                await self.send_response(channel_id, response, root_id)
                 
             elif subcommand == 'call':
                 if len(command_parts) < 4:
                     await self.send_response(
                         channel_id,
                         f"Invalid call command. Use {self.command_prefix}{server_name} call <tool_name> [parameter_name] [value]",
-                        post_id
+                        root_id
                     )
                     return
                     
@@ -509,14 +361,14 @@ class MattermostMCPIntegration:
                 
                 try:
                     result = await client.call_tool(tool_name, tool_args)
-                    await self.send_response(channel_id, f"Tool result from {server_name}: {result}", post_id)
+                    await self.send_response(channel_id, f"Tool result from {server_name}: {result}", root_id)
                     # Send the result.text as markdown
                     if hasattr(result, 'content') and result.content:
                         if hasattr(result.content[0], 'text'):
-                            await self.send_response(channel_id, result.content[0].text, post_id)
+                            await self.send_response(channel_id, result.content[0].text, root_id)
                 except Exception as e:
                     logger.error(f"Error calling tool {tool_name} on {server_name}: {str(e)}")
-                    await self.send_response(channel_id, f"Error calling tool {tool_name} on {server_name}: {str(e)}", post_id)
+                    await self.send_response(channel_id, f"Error calling tool {tool_name} on {server_name}: {str(e)}", root_id)
                     
             elif subcommand == 'resources':
                 # Use the correct client instance
@@ -524,7 +376,7 @@ class MattermostMCPIntegration:
                 response = "Available MCP resources:\n"
                 for resource in resources:
                     response += f"- {resource}\n"
-                await self.send_response(channel_id, response, post_id)
+                await self.send_response(channel_id, response, root_id)
                 
             elif subcommand == 'prompts':
                 # Use the correct client instance
@@ -532,15 +384,15 @@ class MattermostMCPIntegration:
                 response = "Available MCP prompts:\n"
                 for prompt in prompts:
                     response += f"- {prompt}\n"
-                await self.send_response(channel_id, response, post_id)
+                await self.send_response(channel_id, response, root_id)
                 
             else:
                 # Try to use LLM as a fallback
-                await self.handle_llm_request(channel_id, message_text, user_id, post_id)
+                await self.handle_llm_request(channel_id, message_text, user_id, root_id)
                 
         except Exception as e:
             logger.error(f"Error processing command: {str(e)}")
-            await self.send_response(channel_id, f"Error processing command: {str(e)}", post_id)
+            await self.send_response(channel_id, f"Error processing command: {str(e)}", root_id)
 
     async def send_help_message(self, channel_id, post_id=None):
         """Send a detailed help message explaining all available commands"""
@@ -641,5 +493,8 @@ async def start():
     integration = MattermostMCPIntegration()
     await integration.run()
 
-if __name__ == "__main__":
+def main():
     asyncio.run(start())
+
+if __name__ == "__main__":
+    main()

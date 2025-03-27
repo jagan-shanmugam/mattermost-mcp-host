@@ -1,0 +1,35 @@
+{
+    "mcpServers": {
+      "ollama-mcp-server":{
+        "command": "python",
+        "args": ["ollama-mcp-server/src/ollama_mcp_server/main.py"],
+        "type": "stdio"
+      },
+      "simple-mcp-server": {
+        "command": "python",
+        "args": ["simple-mcp-server/server.py"],
+        "type": "stdio"
+      },
+      "fetch": {
+        "command": "uvx",
+        "args": ["mcp-server-fetch"],
+        "type": "stdio"
+      },
+      "github.com/zcaceres/fetch-mcp": {
+      "command": "node",
+      "args": [
+        "/Users/JSHANMU/Documents/Cline/MCP/fetch-mcp/dist/index.js"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "fetch_markdown"
+      ],
+      "type": "stdio"
+      },
+      "ddg-search": {
+            "command": "uvx",
+            "args": ["duckduckgo-mcp-server"],
+            "type": "stdio"
+        }
+    }
+}

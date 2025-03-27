@@ -1,6 +1,6 @@
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-import mcp.types as types
+
 import logging
 import asyncio
 
