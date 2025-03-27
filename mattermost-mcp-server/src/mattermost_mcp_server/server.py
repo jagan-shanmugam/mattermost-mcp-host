@@ -2,7 +2,7 @@ import asyncio
 import os
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 import aiohttp
 from mcp.server.models import InitializationOptions
@@ -11,14 +11,18 @@ from mcp.server import NotificationOptions, Server
 from pydantic import AnyUrl
 import mcp.server.stdio
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Mattermost Configuration
 MATTERMOST_URL = os.environ.get('MATTERMOST_URL', 'localhost')
-MATTERMOST_TOKEN = os.environ.get('MATTERMOST_TOKEN', '548eya8qofdq7ygio958iirrco')
+MATTERMOST_TOKEN = os.environ.get('MATTERMOST_TOKEN', '123')
 MATTERMOST_SCHEME = os.environ.get('MATTERMOST_SCHEME', 'http')
 MATTERMOST_PORT = int(os.environ.get('MATTERMOST_PORT', '8065'))
 MATTERMOST_TEAM_NAME = os.environ.get('MATTERMOST_TEAM_NAME', 'test')
-MATTERMOST_CHANNEL_NAME = os.environ.get('MATTERMOST_CHANNEL_NAME', 'mcp-client')
-MATTERMOST_CHANNEL_ID = os.environ.get('MATTERMOST_CHANNEL_ID', '5q39mmzqji8bddxyjzsqbziy9a')  # Will be auto-detected if empty
+MATTERMOST_CHANNEL_NAME = os.environ.get('MATTERMOST_CHANNEL_NAME', 'MCP-Client')
+MATTERMOST_CHANNEL_ID = os.environ.get('MATTERMOST_CHANNEL_ID', 'bkciffjkfbgp9g44safgbfh1ew') 
 
 class config:
     LOG_LEVEL = "DEBUG"
