@@ -7,6 +7,13 @@ A Mattermost integration that connects to Model Context Protocol (MCP) servers, 
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Package Manager](https://img.shields.io/badge/package%20manager-uv-purple)
 
+
+## Demo
+
+[![AI Agent in Action in Mattermost](./demo/supercut_image.png)](https://supercut.video/share/uthyog/OxfDqy-k-oQePrVSo2udnf)
+
+
+
 ## Features
 
 - 🤖 **Langgraph Agent Integration**: Uses a LangGraph agent to understand user requests and orchestrate responses.
@@ -88,20 +95,22 @@ The integration works as follows:
 
 5.  **Start the Integration:**
     ```bash
-    mattermost_mcp_host
+    mattermost-mcp-host
     ```
 
-For detailed installation instructions and additional configuration options, see [INSTALLATION.md](INSTALLATION.md).
 
 ## Prerequisites
 
 - Python 3.13.1+
-- uv package manager (recommended)
+- uv package manager
 - Mattermost server instance
 - Mattermost Bot Account with API token
 - Access to a LLM API (Azure OpenAI)
-- One or more MCP servers configured in `mcp-servers.json`.
-- Tavily web search requires `TAVILY_API_KEY`
+
+### Optional
+- One or more MCP servers configured in `mcp-servers.json` 
+- Tavily web search requires `TAVILY_API_KEY` in `.env` file
+
 
 ## Usage in Mattermost
 
@@ -160,7 +169,7 @@ Once the integration is running and connected:
 
 ## Contributing
 
-Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on submitting pull requests.
+Please feel free to open a PR.
 
 ## License
 
