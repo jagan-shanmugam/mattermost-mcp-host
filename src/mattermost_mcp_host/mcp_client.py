@@ -34,7 +34,7 @@ class MCPClient:
         self.server_type = server_config.get('type', 'stdio').lower()
         self.mcp_command = server_config.get('command')
         self.mcp_args = server_config.get('args', [])
-        self.env = server_config.get('env')
+        self.env = server_config.get('env', os.environ.copy()) # Default to current environment
         self.url = server_config.get('url') # For http/sse
 
         self.session = None
@@ -71,7 +71,7 @@ class MCPClient:
         if not command_path:
              raise RuntimeError(f"Executable not found for command: {self.mcp_command}")
         self.logger.info(f"Using executable path: {command_path}")
-
+        
         server_params = StdioServerParameters(
             command=command_path,
             args=self.mcp_args,

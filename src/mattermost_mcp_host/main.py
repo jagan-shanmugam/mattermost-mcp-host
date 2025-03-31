@@ -225,14 +225,23 @@ class MattermostMCPIntegration:
             result = await self.agent.run(
                 query=message,
                 history=thread_history,
-                user_id=user_id
+                user_id=user_id,
+                metadata={
+                    "channel_id": channel_id,
+                    "team_name": config.MATTERMOST_TEAM_NAME.lower().replace(" ", "-"),
+                    "channel_name": config.MATTERMOST_CHANNEL_NAME.lower().replace(" ", "-"),
+                }
             )
             
             # Extract the final response from the agent's messages
-            final_response = self.agent.extract_response(result["messages"])
-            logger.info(f"Agent response: {final_response}")
-                
-            await self.send_response(channel_id, final_response or "No response generated", root_id)
+            responses = self.agent.extract_response(result["messages"])
+            logger.info(f"Agent response: {responses}")
+            previous_agent_responses = [msg["content"] for msg in thread_history if msg["role"] == "assistant"]
+            
+            # Filter out previous agent responses to avoid duplicates
+            for response in responses:
+                if response not in previous_agent_responses:
+                    await self.send_response(channel_id, response or "No response generated", root_id)
                 
         except Exception as e:
             logger.error(f"Error handling LLM request: {str(e)}")
@@ -247,7 +256,7 @@ class MattermostMCPIntegration:
             # Skip messages from the bot itself
             if post.get('user_id') == self.mattermost_client.driver.client.userid:
                 return
-                
+            
             # Extract message data
             channel_id = post.get('channel_id')
             message = post.get('message', '')

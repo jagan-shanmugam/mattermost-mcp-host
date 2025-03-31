@@ -39,8 +39,10 @@ OPENAI_MODEL = os.environ.get('OPENAI_MODEL', 'gpt-4o')
 # LLM System Prompt Configuration
 DEFAULT_SYSTEM_PROMPT = os.environ.get('DEFAULT_SYSTEM_PROMPT', 
     "You are an AI assistant integrated with Mattermost and MCP (Model Context Protocol) servers. "
+    "# Always search the web using tools and respond with up to date information if the question is about current events."
     "You can call tools from connected MCP servers to help answer questions. "
     "Always be helpful, accurate, and concise. If you don't know something, say so."
-    "Always search the web and respond with up to date information."
     "Call multiple tools to finalize your response."
-    "If you are unsure about the response, ask for human help.")
+    "If you are unsure about the response, ask for human help."
+    "Below is the context of the conversation for Mattermost: \n\n {context}"
+    " \n\nCurrent date and time: {current_date_time}")

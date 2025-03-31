@@ -3,12 +3,12 @@ from mattermost_mcp_host.agent.tools import tools
 
 import os
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TypedDict, Any, Annotated
+from datetime import datetime
 
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
-# from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage, AnyMessage
 from langchain_openai import AzureChatOpenAI
-from langgraph.graph import StateGraph, END, START, MessagesState as AgentState
+from langgraph.graph import StateGraph, END, START, add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 # Define the agent state
 # class AgentState(TypedDict):
 #     messages: List[BaseMessage]
+
+class AgentState(TypedDict):
+    messages: Annotated[list[AnyMessage], add_messages]
+    metadata: Optional[Dict[Any, Any]]
 
 # Define the agent class
 class LangGraphAgent:
@@ -32,7 +36,7 @@ class LangGraphAgent:
         """
         self.provider = provider
         self.model = model or os.environ.get("AZURE_OPENAI_DEPLOYMENT")
-        self.system_prompt = system_prompt or "You are a helpful AI assistant."
+        self.system_prompt_template = system_prompt or "You are a helpful AI assistant. Below is the context of the conversation for Mattermost: \n \n {context} \n\nCurrent date and time: {current_date_time}"
         
         # Initialize the LangChain LLM
         self.llm = AzureChatOpenAI(
@@ -65,6 +69,7 @@ class LangGraphAgent:
         async def agent_node(state: AgentState):
             """Agent node that processes messages and decides on actions."""
             messages = state["messages"]
+            
             # Use the prompt template to format messages
             # formatted_messages = prompt.invoke({"messages": messages})
             response = await self.llm_with_tools.ainvoke(messages)
@@ -101,7 +106,7 @@ class LangGraphAgent:
         # TODO: Add a reliable checkpointer for production, Postgres 
         return workflow.compile(checkpointer=MemorySaver())
     
-    async def run(self, query: str, history: List[Dict[str, str]], user_id: Optional[str] = None) -> Dict[str, List[BaseMessage]]:
+    async def run(self, query: str, history: List[Dict[str, str]], user_id: Optional[str] = None, metadata: Optional[Dict[Any, Any]] = None) -> Dict[str, List[BaseMessage]]:
         """Run the agent with a query.
         
         Args:
@@ -110,8 +115,8 @@ class LangGraphAgent:
         Returns:
             The state containing messages from the agent run
         """
-        logger.info(f"System Prompt: {self.system_prompt}")
-        messages = [SystemMessage(content=self.system_prompt)]
+        logger.info(f"System Prompt: {self.system_prompt_template}")
+        messages = [SystemMessage(content=self.system_prompt_template.format(context=metadata, current_date_time=datetime.now().isoformat()))]
         
         # Add history messages if available
         for msg in history:
