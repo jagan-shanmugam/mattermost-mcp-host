@@ -840,10 +840,11 @@ async def handle_list_tools() -> list[types.Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "channel_id": {"type": "string"},
+                    "team_name": {"type": "string"},
+                    "channel_name": {"type": "string"},
                     "message": {"type": "string"},
                 },
-                "required": ["channel_id", "message"],
+                "required": ["channel_name", "message"],
             },
         ),
         types.Tool(
@@ -910,11 +911,15 @@ async def handle_call_tool(
         raise ValueError("Missing required arguments")
         
     if name == "post-message":
-        channel_id = arguments.get("channel_id")
+        team_name = arguments.get("team_name")
+        channel_name = arguments.get("channel_name")
         message = arguments.get("message")
         
+        team_id = await fetch_team_id(team_name)
+        
+        channel_id = await fetch_channel_id(team_id, channel_name)
         if not channel_id or not message:
-            raise ValueError("Missing required arguments: channel_id and message")
+            raise ValueError("Missing required arguments: team_name or channel_name or message")
             
         try:
             post = await create_post(channel_id, message)
