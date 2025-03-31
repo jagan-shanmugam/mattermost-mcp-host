@@ -12,13 +12,13 @@ A Mattermost integration that connects to Model Context Protocol (MCP) servers, 
 ## Demo
 
 ### 1. Create a Github issue
-![Description of your GIF](./demo/demo-1.gif)
+![Description of your GIF](./demo/demo-1.gif)   
 
 
 ### 2. Search internet and post to a channel using Mattermost-MCP-server
 ![Description of your GIF](./demo/demo-2.gif)
 
-
+#### Scroll below for full demo in YouTube
 
 ## Features
 
@@ -173,9 +173,9 @@ Once the integration is running and connected:
 - Ensure required dependencies are installed and env variables are defined
 
 
-## Demo
+## Demo (in YouTube)
 
-[![AI Agent in Action in Mattermost](./demo/supercut_image.png)](https://supercut.video/share/uthyog/OxfDqy-k-oQePrVSo2udnf)
+[![AI Agent in Action in Mattermost](./demo/supercut-thumbnail.png)](https://youtu.be/s6CZY81DRrU)
 
 
 ## Contributing
