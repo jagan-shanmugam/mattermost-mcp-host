@@ -12,16 +12,12 @@ A Mattermost integration that connects to Model Context Protocol (MCP) servers, 
 ## Demo
 
 ### 1. Create a Github issue
-<video controls width="640">
-  <source src="./demo/mattermost-mcp-demo-1.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Description of your GIF](./demo/demo-1.gif)
+
 
 ### 2. Search internet and post to a channel using Mattermost-MCP-server
-<video controls width="640">
-  <source src="./demo/mattermost-mcp-demo-2.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+![Description of your GIF](./demo/demo-2.gif)
+
 
 
 ## Features
