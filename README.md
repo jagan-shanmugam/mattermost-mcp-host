@@ -8,10 +8,20 @@ A Mattermost integration that connects to Model Context Protocol (MCP) servers, 
 ![Package Manager](https://img.shields.io/badge/package%20manager-uv-purple)
 
 
+
 ## Demo
 
-[![AI Agent in Action in Mattermost](./demo/supercut_image.png)](https://supercut.video/share/uthyog/OxfDqy-k-oQePrVSo2udnf)
+### 1. Create a Github issue
+<video controls width="640">
+  <source src="./demo/mattermost-mcp-demo-1.mov" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
+### 2. Search internet and post to a channel using Mattermost-MCP-server
+<video controls width="640">
+  <source src="./demo/mattermost-mcp-demo-2.mov" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 
 ## Features
@@ -165,6 +175,11 @@ Once the integration is running and connected:
 - Check server logs
 - Verify server configurations
 - Ensure required dependencies are installed and env variables are defined
+
+
+## Demo
+
+[![AI Agent in Action in Mattermost](./demo/supercut_image.png)](https://supercut.video/share/uthyog/OxfDqy-k-oQePrVSo2udnf)
 
 
 ## Contributing
