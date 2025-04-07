@@ -84,10 +84,19 @@ class MattermostMCPIntegration:
 
         # Initialize agent based on configuration
         if config.AGENT_TYPE.lower() == 'simple':
-            self.agent = LangGraphAgent(config.DEFAULT_PROVIDER, config.DEFAULT_MODEL, tools=all_langchain_tools, system_prompt=config.DEFAULT_SYSTEM_PROMPT)
-        else:
-            raise ValueError(f"Unknown agent type: {config.AGENT_TYPE}")
+            system_prompt = config.DEFAULT_SYSTEM_PROMPT
+            name = 'simple'
+            
+        elif config.AGENT_TYPE.lower() == 'github':
+            name = 'github'
+            system_prompt = config.GITHUB_AGENT_SYSTEM_PROMPT
 
+        self.agent = LangGraphAgent(name=name, 
+                                    provider=config.DEFAULT_PROVIDER, 
+                                    model=config.DEFAULT_MODEL, 
+                                    tools=all_langchain_tools, 
+                                    system_prompt=system_prompt)
+        
         # Initialize Mattermost client
         try:
             self.mattermost_client = MattermostClient(
@@ -230,6 +239,8 @@ class MattermostMCPIntegration:
                     "channel_id": channel_id,
                     "team_name": config.MATTERMOST_TEAM_NAME.lower().replace(" ", "-"),
                     "channel_name": config.MATTERMOST_CHANNEL_NAME.lower().replace(" ", "-"),
+                    "github_username": config.GITHUB_USERNAME,
+                    "github_repo": config.GITHUB_REPO_NAME,
                 }
             )
             

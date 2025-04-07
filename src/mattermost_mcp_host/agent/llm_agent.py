@@ -26,7 +26,13 @@ class AgentState(TypedDict):
 
 # Define the agent class
 class LangGraphAgent:
-    def __init__(self, provider: str = "azure", model: str = None, system_prompt: str = None, tools: List[callable] = tools):
+    def __init__(self, 
+                 name: str,
+                 provider: str = "azure", 
+                 model: str = None, 
+                 system_prompt: str = None, 
+                 tools: List[callable] = tools,
+                 ):
         """Initialize the LangGraph agent.
         
         Args:
@@ -45,7 +51,8 @@ class LangGraphAgent:
             azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
             api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
         )
-
+        self.name = name
+        
         # log the tools
         logger.info(f"Tools: {tools}")
         self.tools = tools
@@ -70,6 +77,7 @@ class LangGraphAgent:
             """Agent node that processes messages and decides on actions."""
             messages = state["messages"]
             
+            logger.info(f"Agent Node: {messages}")
             # Use the prompt template to format messages
             # formatted_messages = prompt.invoke({"messages": messages})
             response = await self.llm_with_tools.ainvoke(messages)
@@ -116,8 +124,21 @@ class LangGraphAgent:
             The state containing messages from the agent run
         """
         logger.info(f"System Prompt: {self.system_prompt_template}")
-        messages = [SystemMessage(content=self.system_prompt_template.format(context=metadata, current_date_time=datetime.now().isoformat()))]
         
+        if self.name == "github":            
+            github_tools = [tool for tool in self.tools if tool.name.lower() in ["list_issues", "list_pull_requests"]]
+            
+            github_context = ""
+            for tool in github_tools:
+                tool_context = tool.ainvoke(input={'owner': metadata.get('github_username'), 'repo': metadata.get('github_repo')})
+                github_context += f"\n\n{tool.name}: {tool_context}"
+
+            messages = [SystemMessage(content=self.system_prompt_template.format(context=metadata, 
+                                                                                current_date_time=datetime.now().isoformat(), 
+                                                                                github_context=github_context))]
+        else:
+            messages = [SystemMessage(content=self.system_prompt_template.format(context=metadata, 
+                                                                                current_date_time=datetime.now().isoformat()))]
         # Add history messages if available
         for msg in history:
             if msg["content"] == query:
@@ -131,7 +152,7 @@ class LangGraphAgent:
         # Add the current query as the latest message
         messages.append(HumanMessage(content=query))
         state = {"messages": messages}
-        
+
         # TODO: Add metadata as config for Agent's memory, currently does not work
         config = {
                 "configurable": {
