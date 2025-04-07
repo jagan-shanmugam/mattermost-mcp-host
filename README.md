@@ -11,8 +11,8 @@ A Mattermost integration that connects to Model Context Protocol (MCP) servers, 
 
 ## Demo
 
-### 1. Create a Github issue
-![Description of your GIF](./demo/demo-1.gif)   
+### 1. Github Agent in support channel - searches the existing issues and PRs and creates a new issue if not found
+![Description of your GIF](./demo/demo-3.gif)   
 
 
 ### 2. Search internet and post to a channel using Mattermost-MCP-server
@@ -173,8 +173,12 @@ Once the integration is running and connected:
 - Ensure required dependencies are installed and env variables are defined
 
 
-## Demo (in YouTube)
+## Demos
 
+### Create issue via chat using Github MCP server
+![Description of your GIF](./demo/demo-1.gif)  
+
+### (in YouTube)
 [![AI Agent in Action in Mattermost](./demo/supercut-thumbnail.png)](https://youtu.be/s6CZY81DRrU)
 
 
