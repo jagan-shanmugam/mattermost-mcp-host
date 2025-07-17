@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/jagan-shanmugam-mattermost-mcp-host-badge.png)](https://mseep.ai/app/jagan-shanmugam-mattermost-mcp-host)
+
 # Mattermost MCP Host
 
 A Mattermost integration that connects to Model Context Protocol (MCP) servers, leveraging a LangGraph-based AI agent to provide an intelligent interface for interacting with users and executing tools directly within Mattermost.
